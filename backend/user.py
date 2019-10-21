@@ -1,6 +1,7 @@
 from backend.FlaskandDBConnect import *
+from backend.helper import prepareforJSON, encodePASSWD
 
-@app.route('/allUsers', methods=['GET'])
+@app.route('/api/allUsers', methods=['GET'])
 def allUsers():
   try:
     cur = mysql.connection.cursor()
@@ -10,14 +11,16 @@ def allUsers():
   except (MySQL.Error, MySQL.Warning) as err :
     print("something went wrong {}".format(err))
     pass
-  return jsonify(result)
+  modeller=["id","username","passwd","email"]
+  return jsonify(prepareforJSON(result,modeller)) #jsonify(result)
 
 
 @app.route('/api/register', methods=['POST'])
 def addUser():
   data = request.get_json()
   username = data['username']
-  passwd = data['passwd']
+  psd = data['passwd']
+  passwd= encodePASSWD(psd)
   email = data['email']
   try:
     cur = mysql.connection.cursor()
@@ -37,6 +40,34 @@ def addUser():
   return jsonify(result)
 
 
+@app.route('/api/login', methods=['POST'])
+def login():
+  data= request.get_json()
+  username= data['username']
+  ps = data['passwd']
+  passwd = encodePASSWD(ps)
+  try:
+    cur = mysql.connection.cursor()
+    response= cur.execute(""" SELECT * FROM  users WHERE username = %s and passwd= %s""",( username,passwd) )
+    rs= cur.fetchall()
+    cur.close()
+
+    if response > 0 :
+      modeller = ["id", "username", "passwd", "email"]
+      userData = prepareforJSON(rs,modeller)
+      user= userData[0]
+      user['login']= 'login done'
+      user.pop('id')
+      user.pop('email')
+      user.pop('passwd')
+      result = user
+    else:
+      result = {'login' : 'login fail'}
+
+  except (MySQL.Error, MySQL.Warning) as err:
+    print("something went wrong {}".format(err))
+    pass
+  return jsonify(result)
 
 
 
